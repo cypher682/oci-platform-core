@@ -29,21 +29,25 @@ def oci_json(args):
 
 
 def private_ip(instance_id):
-    payload = oci_json(
-        [
-            "compute",
-            "instance",
-            "list-vnics",
-            "--instance-id",
-            instance_id,
-            "--query",
-            "data[0].\"private-ip\"",
-        ]
-    )
-    data = payload.get("data", [])
-    if isinstance(data, list) and data:
-        return data[0]
-    return payload.get("data")
+    try:
+        payload = oci_json(
+            [
+                "compute",
+                "instance",
+                "list-vnics",
+                "--instance-id",
+                instance_id,
+            ]
+        )
+        data = payload.get("data", [])
+        if isinstance(data, list) and data:
+            vnic = data[0]
+            return vnic.get("private-ip") or vnic.get("private_ip")
+        if isinstance(data, dict):
+            return data.get("private-ip") or data.get("private_ip")
+    except Exception:
+        pass
+    return None
 
 
 instances = oci_json(
@@ -61,11 +65,16 @@ app_hosts = []
 for instance in instances:
     if instance.get("lifecycle-state") != "RUNNING":
         continue
-    role = (instance.get("freeform_tags") or {}).get("Role", "")
+    role = (
+        instance.get("freeform-tags")
+        or instance.get("freeform_tags")
+        or {}
+    ).get("Role", "")
     if role != "app":
         continue
     ip = private_ip(instance["id"])
-    app_hosts.append(f"{ip} ansible_user=deploy hostname={instance['display-name']}")
+    if ip:
+        app_hosts.append(f"{ip} ansible_user=deploy hostname={instance['display-name']}")
 
 print("[app]")
 for host in app_hosts:

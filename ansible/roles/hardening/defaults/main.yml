@@ -1,5 +1,5 @@
 ---
-hardening_ssh_allow_users: deploy
+hardening_ssh_allow_users: "deploy opc"
 hardening_fail2ban_bantime: 1h
 hardening_fail2ban_findtime: 10m
 hardening_fail2ban_maxretry: 4
