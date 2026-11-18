@@ -21,6 +21,30 @@ OCI_COMPARTMENT_OCID="${OCI_COMPARTMENT_OCID:-$(cfgval tenancy)}"
 : "${OCI_CLI_USER:?Set OCI_CLI_USER or run: oci setup config}"
 : "${OCI_COMPARTMENT_OCID:?Set OCI_COMPARTMENT_OCID or run: oci setup config}"
 
+json_get() {
+  local field="$1" json="$2"
+  if command -v jq >/dev/null 2>&1; then
+    printf '%s' "$json" | jq -r --arg f "$field" '.data[$f]'
+  elif python -c 'import json' >/dev/null 2>&1; then
+    printf '%s' "$json" | python -c 'import json,sys; print(json.load(sys.stdin)["data"][sys.argv[1]])' "$field"
+  elif command -v py >/dev/null 2>&1 && py -3 -c 'import json' >/dev/null 2>&1; then
+    printf '%s' "$json" | py -3 -c 'import json,sys; print(json.load(sys.stdin)["data"][sys.argv[1]])' "$field"
+  elif python3 -c 'import json' >/dev/null 2>&1; then
+    printf '%s' "$json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"][sys.argv[1]])' "$field"
+  else
+    echo "error: need jq or Python to read the OCI CLI JSON response" >&2
+    return 1
+  fi
+}
+
+if ! command -v jq >/dev/null 2>&1 \
+   && ! python -c 'import json' >/dev/null 2>&1 \
+   && ! py -3 -c 'import json' >/dev/null 2>&1 \
+   && ! python3 -c 'import json' >/dev/null 2>&1; then
+  echo "error: install jq or Python before running this script" >&2
+  exit 1
+fi
+
 BUCKET="${1:-oci-platform-core-tfstate}"
 
 echo "Namespace and bucket"
@@ -51,8 +75,8 @@ KEY_JSON="$(oci iam customer-secret-key create \
   --display-name "terraform-state-$(date -u +%Y%m%d%H%M%S)" \
   --output json)"
 
-KEY_ID="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["id"])' <<<"$KEY_JSON")"
-SECRET="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["secret-key"])' <<<"$KEY_JSON")"
+KEY_ID="$(json_get id "$KEY_JSON")"
+SECRET="$(json_get secret-key "$KEY_JSON")"
 
 cat <<EOF
 
