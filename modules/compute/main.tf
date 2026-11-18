@@ -44,12 +44,12 @@ resource "oci_core_instance" "this" {
     user_data = base64encode(templatefile("${path.module}/cloud-init.sh.tpl", {
       hostname       = "${var.project}-${var.environment}-${var.instance_role}-${count.index + 1}"
       ssh_public_key = var.ssh_public_key
+      app_tier       = var.instance_role == "app"
     }))
   }
 
   freeform_tags = merge(var.tags, { Role = var.instance_role })
 
-  lifecycle {
-    ignore_changes = [metadata["user_data"]]
-  }
+  # user_data is immutable in OCI: a changed bootstrap has to replace the
+  # instance, so it is deliberately not ignored here.
 }

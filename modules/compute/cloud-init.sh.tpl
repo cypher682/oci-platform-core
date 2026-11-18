@@ -54,3 +54,15 @@ systemctl restart systemd-journald
 
 # Marker used by Ansible pre-flight checks
 echo "cloud-init complete $(date -u +%FT%TZ)" > /var/log/platform-cloud-init.done
+%{ if app_tier }
+# Bootstrap health endpoint, appended only for the app tier so the load
+# balancer can gate on /health before Ansible installs the real application.
+dnf -y install nginx
+cat > /usr/share/nginx/html/health <<'HEALTH'
+{"status":"ok","tier":"app","served_by":"cloud-init"}
+HEALTH
+restorecon -Rv /usr/share/nginx/html >/dev/null 2>&1 || true
+systemctl enable --now nginx
+firewall-cmd --permanent --add-service=http >/dev/null
+firewall-cmd --reload >/dev/null
+%{ endif }

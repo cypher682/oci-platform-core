@@ -104,6 +104,10 @@ creates the `deploy` user, installs Python, firewalld, chrony, and basic tooling
 and leaves hardening, Docker, nginx, and the app to Ansible. Ansible re-checks
 SELinux and firewalld rather than trusting cloud-init.
 
+On the app tier only, cloud-init also installs nginx and serves a static
+`/health`, so the load balancer can gate the tier in the apply pipeline before
+Ansible has run. Ansible replaces that placeholder site with the real app.
+
 ### Data and secrets
 
 ADB is OLTP on the ECPU compute model (2 ECPUs, 20 GB), private endpoint,
