@@ -21,7 +21,9 @@ jobs:
 
       - name: Install Ansible and collections
         run: |
-          python3 -m pip install --user --upgrade "ansible-core>=2.16" docker
+          # Oracle Linux 9 ships Python 3.9; ansible-core 2.16+ needs 3.10+.
+          sudo dnf -y install python3.11 python3.11-pip
+          python3.11 -m pip install --user --upgrade "ansible-core>=2.16" docker
           export PATH="$HOME/.local/bin:$PATH"
           ansible-galaxy collection install -r ansible/requirements.yml
 

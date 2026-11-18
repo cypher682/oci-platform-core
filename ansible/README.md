@@ -6,8 +6,13 @@ subnet.
 
 ## Install
 
+Oracle Linux 9 ships Python 3.9, but ansible-core 2.16+ needs Python 3.10+, so
+install 3.11 first and use it explicitly:
+
 ```bash
-python3 -m pip install --user "ansible-core>=2.16" docker
+sudo dnf -y install python3.11 python3.11-pip
+python3.11 -m pip install --user "ansible-core>=2.16" docker
+export PATH="$HOME/.local/bin:$PATH"
 ansible-galaxy collection install -r requirements.yml
 ```
 
