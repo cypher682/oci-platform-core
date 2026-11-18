@@ -10,20 +10,23 @@
       - selinux_state.stdout == "Enforcing"
     fail_msg: "SELinux is {{ selinux_state.stdout }} — refusing to harden a permissive host"
 
-- name: Install audit and EPEL packages
+- name: Enable EPEL for Oracle Linux 9
   ansible.builtin.dnf:
-    name:
-      - audit
-      - oracle-epel-release-el9
+    name: oracle-epel-release-el9
     state: present
     update_cache: true
 
-- name: Install fail2ban
+# update_cache is required here: the EPEL repository only becomes visible after
+# the release package above is installed, so a stale cache says fail2ban does
+# not exist.
+- name: Install audit and fail2ban
   ansible.builtin.dnf:
     name:
+      - audit
       - fail2ban
       - fail2ban-server
     state: present
+    update_cache: true
 
 - name: Harden sshd
   ansible.builtin.copy:
