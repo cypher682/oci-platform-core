@@ -26,7 +26,9 @@ jobs:
           # Install system-wide (not --user) so the binary lands in /usr/local/bin
           # regardless of whether $HOME is set for the runner service account.
           sudo python3.11 -m pip install --upgrade "ansible-core>=2.16" docker oci-cli
-          ansible-galaxy collection install -r ansible/requirements.yml
+          # Install collections to a fixed path so $HOME is not needed
+          ansible-galaxy collection install -r ansible/requirements.yml \
+            --collections-path /tmp/.ansible-collections
 
       - name: Install private key
         env:
@@ -55,6 +57,7 @@ jobs:
           # Redirect Ansible's temp dirs away from $HOME (ghrunner home may not exist)
           ANSIBLE_REMOTE_TMP: /tmp/.ansible-tmp
           ANSIBLE_LOCAL_TMP: /tmp/.ansible-tmp
+          ANSIBLE_COLLECTIONS_PATH: /tmp/.ansible-collections
         run: |
           export PATH="/usr/local/bin:$PATH"
           export ANSIBLE_PRIVATE_KEY_FILE="/tmp/.runner-ssh/oci_platform"
