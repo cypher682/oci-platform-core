@@ -51,12 +51,14 @@
     group: root
     mode: "0755"
 
+# Absolute paths: sudo's secure_path does not include /usr/local/bin, so a bare
+# command name is not resolvable from the privileged task.
 - name: Check client versions
   ansible.builtin.command: "{{ item }}"
   loop:
-    - kubectl version --client
-    - helm version --short
-    - kustomize version
+    - /usr/local/bin/kubectl version --client
+    - /usr/local/bin/helm version --short
+    - /usr/local/bin/kustomize version
   changed_when: false
   register: k8s_tool_versions
 
