@@ -66,6 +66,8 @@ Traffic is distributed via round-robin between two private backend nodes:
 
 ## Architecture
 
+![OCI Platform Architecture](docs/assets/architecture.png)
+
 ```text
                           Internet
                              │
