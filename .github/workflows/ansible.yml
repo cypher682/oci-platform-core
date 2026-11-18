@@ -26,6 +26,8 @@ jobs:
           # Install system-wide (not --user) so the binary lands in /usr/local/bin
           # regardless of whether $HOME is set for the runner service account.
           sudo python3.11 -m pip install --upgrade "ansible-core>=2.16" docker oci-cli
+          # /usr/local/bin is NOT on the runner's default PATH — add it explicitly
+          export PATH="/usr/local/bin:$PATH"
           # Install collections to a fixed path so $HOME is not needed
           ansible-galaxy collection install -r ansible/requirements.yml \
             --collections-path /tmp/.ansible-collections
