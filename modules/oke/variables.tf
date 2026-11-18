@@ -52,8 +52,9 @@ variable "kubernetes_version" {
 }
 
 variable "node_shape" {
+  # OKE only offers E5 shapes for the current node images in this region.
   type    = string
-  default = "VM.Standard.E4.Flex"
+  default = "VM.Standard.E5.Flex"
 }
 
 variable "node_flex" {

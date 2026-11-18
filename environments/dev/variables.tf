@@ -70,8 +70,9 @@ variable "alert_email" {
 }
 
 variable "app_shape" {
+  # This tenancy has no E4 capacity (standard-e4-core-count = 0); E5 does.
   type    = string
-  default = "VM.Standard.E4.Flex"
+  default = "VM.Standard.E5.Flex"
 }
 
 variable "app_ocpus" {
@@ -107,8 +108,9 @@ variable "oke_kubernetes_version" {
 }
 
 variable "oke_node_shape" {
+  # OKE only offers E5 shapes for the current node images in this region.
   type    = string
-  default = "VM.Standard.E4.Flex"
+  default = "VM.Standard.E5.Flex"
 }
 
 variable "oke_node_ocpus" {

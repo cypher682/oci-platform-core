@@ -25,9 +25,9 @@ variable "nsg_ids" {
 }
 
 variable "shape" {
-  description = "Compute shape. VM.Standard.E4.Flex is reliable across ADs; VM.Standard.A1.Flex is ARM."
+  description = "Compute shape. VM.Standard.E5.Flex matches the capacity this tenancy has; VM.Standard.A1.Flex is ARM."
   type        = string
-  default     = "VM.Standard.E4.Flex"
+  default     = "VM.Standard.E5.Flex"
 }
 
 variable "flex_shape" {

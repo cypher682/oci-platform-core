@@ -25,6 +25,18 @@ variable "db_name" {
   default     = "PLATFORMDB"
 }
 
+variable "compute_count" {
+  description = "ECPUs allocated to the database. 2 is the minimum for an Autonomous Database."
+  type        = number
+  default     = 2
+}
+
+variable "data_storage_size_in_gb" {
+  description = "Data storage in GB. 20 is the minimum for a paid Autonomous Database."
+  type        = number
+  default     = 20
+}
+
 variable "admin_password" {
   description = "ADMIN password. Must satisfy Oracle complexity rules. Never commit it."
   type        = string

@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────
-# Autonomous Database — always-free OLTP instance on a private endpoint
+# Autonomous Database — OLTP instance on a private endpoint
 # ─────────────────────────────────────────────
 resource "oci_database_autonomous_database" "this" {
   compartment_id = var.compartment_id
@@ -10,8 +10,10 @@ resource "oci_database_autonomous_database" "this" {
   admin_password = var.admin_password
   is_free_tier   = false
 
-  cpu_core_count           = 1
-  data_storage_size_in_tbs = 1
+  # New Autonomous Databases must use the ECPU compute model; OCPU is rejected.
+  compute_model           = "ECPU"
+  compute_count           = var.compute_count
+  data_storage_size_in_gb = var.data_storage_size_in_gb
 
   license_model  = "LICENSE_INCLUDED"
   character_set  = "AL32UTF8"
