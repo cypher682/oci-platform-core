@@ -131,6 +131,93 @@ The bucket is private and versioned. Do not make it public.
 
 ---
 
+## Step 2b — Install the OCI CLI and upload the values with `gh`
+
+The OCI CLI is the equivalent of the AWS CLI. Install it on the machine where you
+will run the helper script.
+
+Windows, user scope, no administrator prompt:
+
+```powershell
+pipx install --python "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe" oci-cli
+pipx ensurepath
+```
+
+Then open a new shell. Alternatives:
+
+```bash
+# macOS
+brew install oci-cli
+
+# Linux
+bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)"
+
+# OCI Cloud Shell: already installed
+oci --version
+```
+
+Create the API key and config:
+
+```bash
+oci setup config
+```
+
+Answer the prompts:
+
+- config location: press Enter for `~/.oci/config`
+- user OCID: from **My profile**
+- tenancy OCID: from **Tenancy**
+- region: `us-ashburn-1`
+- generate a new API key pair: `Y`
+- key file name: press Enter
+- passphrase: press Enter for none
+
+It creates:
+
+```text
+~/.oci/oci_api_key.pem
+~/.oci/oci_api_key_public.pem
+~/.oci/config
+```
+
+Upload the **public** key: **My profile → API keys → Add API key → Paste a public
+key**, paste `~/.oci/oci_api_key_public.pem`, and add it. The fingerprint in
+`~/.oci/config` must match the one shown in the console.
+
+Verify:
+
+```bash
+oci os ns get --query data --raw-output
+```
+
+Then upload everything to GitHub in one pass:
+
+```bash
+export OCI_NAMESPACE="$(oci os ns get --query data --raw-output)"
+export OCI_TFSTATE_BUCKET='oci-platform-core-tfstate'
+export OCI_S3_ACCESS_KEY='...'          # from Step 2
+export OCI_S3_SECRET_KEY='...'          # from Step 2
+export OCIR_USERNAME='<namespace>/<email>'
+export OCIR_AUTH_TOKEN='...'
+export OCIR_IMAGE="iad.ocir.io/$OCI_NAMESPACE/platform-api"
+
+bash scripts/gh-secrets.sh --dry-run
+bash scripts/gh-secrets.sh
+```
+
+The script reads `~/.oci/config` and the PEM, prompts only for values not already
+in the environment, validates the ADB password and CIDR, and sends each value to
+`gh secret set` on stdin. It does not echo secrets. It skips
+`OCI_OKE_CLUSTER_ID` until you set it after the first apply.
+
+If `gh` is not authenticated:
+
+```bash
+gh auth login
+```
+
+---
+
 ## Step 3 — Generate the SSH key pair and database password
 
 ### SSH key
