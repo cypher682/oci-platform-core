@@ -1,6 +1,26 @@
 # ─────────────────────────────────────────────
 # Object Storage — artifacts, logs and backup buckets
 # ─────────────────────────────────────────────
+locals {
+  # Object Storage runs lifecycle rules as its own service principal, so it needs
+  # explicit permission on the object family. Policies live in the root
+  # compartment, which is the tenancy itself when no compartment is created.
+  is_tenancy_root = startswith(var.compartment_id, "ocid1.tenancy.")
+  policy_scope    = local.is_tenancy_root ? "in tenancy" : "in compartment id ${var.compartment_id}"
+}
+
+resource "oci_identity_policy" "lifecycle" {
+  compartment_id = var.tenancy_ocid
+  name           = "${var.project}-${var.environment}-objectstorage-lifecycle"
+  description    = "Allow the Object Storage service in ${var.region} to apply lifecycle rules"
+
+  statements = [
+    "Allow service objectstorage-${var.region} to manage object-family ${local.policy_scope}"
+  ]
+
+  freeform_tags = var.tags
+}
+
 resource "oci_objectstorage_bucket" "artifacts" {
   compartment_id = var.compartment_id
   namespace      = var.namespace
@@ -42,6 +62,8 @@ resource "oci_objectstorage_object_lifecycle_policy" "logs" {
   namespace = var.namespace
   bucket    = oci_objectstorage_bucket.logs.name
 
+  depends_on = [oci_identity_policy.lifecycle]
+
   rules {
     action      = "DELETE"
     name        = "expire-logs-after-30-days"
@@ -55,6 +77,8 @@ resource "oci_objectstorage_object_lifecycle_policy" "logs" {
 resource "oci_objectstorage_object_lifecycle_policy" "backups" {
   namespace = var.namespace
   bucket    = oci_objectstorage_bucket.backups.name
+
+  depends_on = [oci_identity_policy.lifecycle]
 
   rules {
     action      = "DELETE"

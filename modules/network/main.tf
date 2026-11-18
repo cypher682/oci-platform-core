@@ -9,6 +9,15 @@ data "oci_core_services" "all_services" {
   }
 }
 
+locals {
+  # OKE needs explicit rules towards the Oracle Services Network; a 0.0.0.0/0
+  # rule does not cover service gateway traffic.
+  services_cidr = try(
+    [for s in data.oci_core_services.all_services.services : s.cidr_block if can(regex("^All .* Services In Oracle Services Network$", s.name))][0],
+    data.oci_core_services.all_services.services[0].cidr_block
+  )
+}
+
 resource "oci_core_vcn" "this" {
   compartment_id = var.compartment_id
   cidr_blocks    = [var.vcn_cidr]
@@ -76,7 +85,7 @@ resource "oci_core_route_table" "private" {
   }
 
   route_rules {
-    destination       = data.oci_core_services.all_services.services[0].cidr_block
+    destination       = local.services_cidr
     destination_type  = "SERVICE_CIDR_BLOCK"
     network_entity_id = oci_core_service_gateway.this.id
   }
@@ -139,11 +148,47 @@ resource "oci_core_security_list" "public" {
     }
   }
 
+  ingress_security_rules {
+    protocol    = "6"
+    description = "OKE worker to Kubernetes API endpoint (bootstrap)"
+    source      = var.oke_node_subnet_cidr
+    source_type = "CIDR_BLOCK"
+    tcp_options {
+      min = 12250
+      max = 12250
+    }
+  }
+
+  ingress_security_rules {
+    protocol    = "1"
+    description = "OKE path discovery from worker nodes"
+    source      = var.oke_node_subnet_cidr
+    source_type = "CIDR_BLOCK"
+    icmp_options {
+      type = 3
+      code = 4
+    }
+  }
+
   egress_security_rules {
     protocol         = "all"
     destination      = "0.0.0.0/0"
     destination_type = "CIDR_BLOCK"
     description      = "All outbound traffic"
+  }
+
+  egress_security_rules {
+    protocol         = "all"
+    destination      = local.services_cidr
+    destination_type = "SERVICE_CIDR_BLOCK"
+    description      = "OKE control plane to the Oracle Services Network"
+  }
+
+  egress_security_rules {
+    protocol         = "all"
+    destination      = var.oke_node_subnet_cidr
+    destination_type = "CIDR_BLOCK"
+    description      = "OKE control plane to worker nodes"
   }
 
   freeform_tags = var.tags
@@ -161,11 +206,29 @@ resource "oci_core_security_list" "private" {
     source_type = "CIDR_BLOCK"
   }
 
+  ingress_security_rules {
+    protocol    = "1"
+    description = "Path discovery"
+    source      = "0.0.0.0/0"
+    source_type = "CIDR_BLOCK"
+    icmp_options {
+      type = 3
+      code = 4
+    }
+  }
+
   egress_security_rules {
     protocol         = "all"
     destination      = "0.0.0.0/0"
     destination_type = "CIDR_BLOCK"
     description      = "All outbound traffic — NAT or service gateway"
+  }
+
+  egress_security_rules {
+    protocol         = "all"
+    destination      = local.services_cidr
+    destination_type = "SERVICE_CIDR_BLOCK"
+    description      = "Worker nodes to the Oracle Services Network (OKE, OCIR, Object Storage)"
   }
 
   freeform_tags = var.tags
@@ -493,6 +556,52 @@ resource "oci_core_network_security_group_security_rule" "oke_api_egress" {
   destination_type          = "CIDR_BLOCK"
 }
 
+resource "oci_core_network_security_group_security_rule" "oke_api_from_nodes_12250" {
+  network_security_group_id = oci_core_network_security_group.oke_api.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  description               = "OKE worker to Kubernetes API endpoint (bootstrap)"
+  source                    = var.oke_node_subnet_cidr
+  source_type               = "CIDR_BLOCK"
+  tcp_options {
+    destination_port_range {
+      min = 12250
+      max = 12250
+    }
+  }
+}
+
+resource "oci_core_network_security_group_security_rule" "oke_api_from_nodes_icmp" {
+  network_security_group_id = oci_core_network_security_group.oke_api.id
+  direction                 = "INGRESS"
+  protocol                  = "1"
+  description               = "Path discovery from worker nodes"
+  source                    = var.oke_node_subnet_cidr
+  source_type               = "CIDR_BLOCK"
+  icmp_options {
+    type = 3
+    code = 4
+  }
+}
+
+resource "oci_core_network_security_group_security_rule" "oke_api_to_nodes" {
+  network_security_group_id = oci_core_network_security_group.oke_api.id
+  direction                 = "EGRESS"
+  protocol                  = "all"
+  description               = "Kubernetes API endpoint to worker nodes"
+  destination               = var.oke_node_subnet_cidr
+  destination_type          = "CIDR_BLOCK"
+}
+
+resource "oci_core_network_security_group_security_rule" "oke_api_to_services" {
+  network_security_group_id = oci_core_network_security_group.oke_api.id
+  direction                 = "EGRESS"
+  protocol                  = "all"
+  description               = "Kubernetes API endpoint to the Oracle Services Network"
+  destination               = local.services_cidr
+  destination_type          = "SERVICE_CIDR_BLOCK"
+}
+
 # OKE worker nodes: all intra-VCN traffic, all egress
 resource "oci_core_network_security_group_security_rule" "oke_nodes_in" {
   network_security_group_id = oci_core_network_security_group.oke_nodes.id
@@ -510,6 +619,28 @@ resource "oci_core_network_security_group_security_rule" "oke_nodes_egress" {
   description               = "Image pulls, OCI API, telemetry"
   destination               = "0.0.0.0/0"
   destination_type          = "CIDR_BLOCK"
+}
+
+resource "oci_core_network_security_group_security_rule" "oke_nodes_to_services" {
+  network_security_group_id = oci_core_network_security_group.oke_nodes.id
+  direction                 = "EGRESS"
+  protocol                  = "all"
+  description               = "Worker nodes to the Oracle Services Network (OKE, OCIR, Object Storage)"
+  destination               = local.services_cidr
+  destination_type          = "SERVICE_CIDR_BLOCK"
+}
+
+resource "oci_core_network_security_group_security_rule" "oke_nodes_icmp_in" {
+  network_security_group_id = oci_core_network_security_group.oke_nodes.id
+  direction                 = "INGRESS"
+  protocol                  = "1"
+  description               = "Path discovery"
+  source                    = "0.0.0.0/0"
+  source_type               = "CIDR_BLOCK"
+  icmp_options {
+    type = 3
+    code = 4
+  }
 }
 
 # ─────────────────────────────────────────────

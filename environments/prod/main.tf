@@ -86,6 +86,8 @@ module "objectstorage" {
   project        = local.project
   environment    = local.environment
   compartment_id = module.iam.compartment_id
+  tenancy_ocid   = var.tenancy_ocid
+  region         = var.region
   namespace      = data.oci_objectstorage_namespace.this.namespace
   kms_key_id     = module.vault.key_id
 
