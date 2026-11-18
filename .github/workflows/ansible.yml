@@ -29,7 +29,7 @@ jobs:
           # /usr/local/bin is NOT on the runner's default PATH — add it explicitly
           export PATH="/usr/local/bin:$PATH"
           # Install collections system-wide so they're on the default search path
-          sudo ansible-galaxy collection install -r ansible/requirements.yml \
+          sudo /usr/local/bin/ansible-galaxy collection install -r ansible/requirements.yml \
             --collections-path /usr/share/ansible/collections
 
       - name: Install private key
@@ -62,6 +62,6 @@ jobs:
         run: |
           export PATH="/usr/local/bin:$PATH"
           export ANSIBLE_PRIVATE_KEY_FILE="/tmp/.runner-ssh/oci_platform"
-          mkdir -p /tmp/.ansible-tmp
+          mkdir -p -m 777 /tmp/.ansible-tmp /tmp/ansible-facts
           cd ansible
           ansible-playbook site.yml -i inventory/hosts.ini -v
