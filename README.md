@@ -143,6 +143,7 @@ balancer will consume credit continuously.
 
 ## Documentation
 
+- [Pipeline setup — where every value comes from](docs/pipeline-setup.md)
 - [Credentials you must supply](docs/credentials.md)
 - [Architecture and failure modes](docs/architecture.md)
 - [Runbook](docs/runbook.md)

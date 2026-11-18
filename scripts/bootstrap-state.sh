@@ -25,8 +25,7 @@ fi
 oci os bucket update \
   --namespace "$NAMESPACE" \
   --name "$BUCKET" \
-  --versioning Enabled \
-  --force >/dev/null
+  --versioning Enabled >/dev/null
 
 echo
 echo "Creating an S3 customer secret key for Terraform state"
@@ -35,8 +34,8 @@ KEY_JSON="$(oci iam customer-secret-key create \
   --display-name "terraform-state-$(date -u +%Y%m%d%H%M%S)" \
   --output json)"
 
-KEY_ID="$(python -c 'import json,sys; print(json.load(sys.stdin)["data"]["id"])' <<<"$KEY_JSON")"
-SECRET="$(python -c 'import json,sys; print(json.load(sys.stdin)["data"]["secret-key"])' <<<"$KEY_JSON")"
+KEY_ID="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["id"])' <<<"$KEY_JSON")"
+SECRET="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["secret-key"])' <<<"$KEY_JSON")"
 
 cat <<EOF
 

@@ -4,6 +4,9 @@
 credentials Terraform needs. This page is the complete list, in the order to collect
 them.
 
+For click-by-click console navigation, see
+[pipeline-setup.md](pipeline-setup.md).
+
 If you only do one thing: create the API key, capture the tenancy OCID, and run
 `make preflight` until it is green.
 
@@ -87,7 +90,8 @@ It is not reused by this stack; Terraform builds a new VCN and new instances.
 ## 6. Autonomous Database ADMIN password
 
 Used as `TF_VAR_db_admin_password`. ADB requires 12–30 characters, at least one
-uppercase, one lowercase, and one number; it must not contain the username `admin`.
+uppercase letter, one lowercase letter, one number, and one special character; it
+must not contain the username `admin`.
 
 Generate one and keep it in a password manager:
 
