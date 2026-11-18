@@ -1,8 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${OCI_COMPARTMENT_OCID:?Export OCI_COMPARTMENT_OCID}"
-: "${OCI_CLI_USER:?Export OCI_CLI_USER (needed to create the S3 customer secret key)}"
+CONFIG="${OCI_CONFIG_FILE:-$HOME/.oci/config}"
+PROFILE="${OCI_CLI_PROFILE:-DEFAULT}"
+
+cfgval() {
+  local key="$1"
+  [ -f "$CONFIG" ] || return 0
+  awk -v key="$key" -v prof="$PROFILE" '
+    /^\[/ { in_section = ($0 == "[" prof "]"); next }
+    in_section && $0 ~ "^[ \t]*" key "[ \t]*=" {
+      sub(/^[^=]*=[ \t]*/, ""); sub(/[ \t\r]+$/, ""); print; exit
+    }
+  ' "$CONFIG"
+}
+
+OCI_CLI_USER="${OCI_CLI_USER:-$(cfgval user)}"
+OCI_COMPARTMENT_OCID="${OCI_COMPARTMENT_OCID:-$(cfgval tenancy)}"
+
+: "${OCI_CLI_USER:?Set OCI_CLI_USER or run: oci setup config}"
+: "${OCI_COMPARTMENT_OCID:?Set OCI_COMPARTMENT_OCID or run: oci setup config}"
 
 BUCKET="${1:-oci-platform-core-tfstate}"
 
