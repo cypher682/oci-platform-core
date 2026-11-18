@@ -37,12 +37,7 @@ data "oci_containerengine_node_pool_option" "this" {
 }
 
 locals {
-  node_images = [
-    for source in data.oci_containerengine_node_pool_option.this.sources :
-    source.image_id
-    if source.source_type == "IMAGE" && source.kubernetes_version == local.kubernetes_version
-  ]
-  node_image_id = length(local.node_images) > 0 ? local.node_images[0] : [
+  node_image_id = [
     for source in data.oci_containerengine_node_pool_option.this.sources :
     source.image_id
     if source.source_type == "IMAGE"
