@@ -1,0 +1,140 @@
+---
+- name: Verify SELinux is enforcing
+  ansible.builtin.command: getenforce
+  register: selinux_state
+  changed_when: false
+
+- name: Fail if SELinux is not enforcing
+  ansible.builtin.assert:
+    that:
+      - selinux_state.stdout == "Enforcing"
+    fail_msg: "SELinux is {{ selinux_state.stdout }} — refusing to harden a permissive host"
+
+- name: Install audit and EPEL packages
+  ansible.builtin.dnf:
+    name:
+      - audit
+      - oracle-epel-release-el9
+    state: present
+    update_cache: true
+
+- name: Install fail2ban
+  ansible.builtin.dnf:
+    name:
+      - fail2ban
+      - fail2ban-server
+    state: present
+
+- name: Harden sshd
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-platform.conf
+    content: |
+      # Managed by Ansible — platform baseline
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PubkeyAuthentication yes
+      PermitEmptyPasswords no
+      X11Forwarding no
+      MaxAuthTries 3
+      ClientAliveInterval 300
+      ClientAliveCountMax 2
+      AllowUsers {{ hardening_ssh_allow_users }}
+      LogLevel VERBOSE
+    owner: root
+    group: root
+    mode: "0600"
+  notify: reload sshd
+
+- name: Apply kernel hardening
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-platform-hardening.conf
+    content: |
+      # Managed by Ansible
+      net.ipv4.conf.all.rp_filter = 1
+      net.ipv4.conf.default.rp_filter = 1
+      net.ipv4.conf.all.accept_source_route = 0
+      net.ipv4.conf.all.accept_redirects = 0
+      net.ipv4.conf.all.send_redirects = 0
+      net.ipv4.tcp_syncookies = 1
+      net.ipv6.conf.all.accept_redirects = 0
+      net.ipv6.conf.all.accept_source_route = 0
+      kernel.dmesg_restrict = 1
+      kernel.kptr_restrict = 2
+      fs.protected_hardlinks = 1
+      fs.protected_symlinks = 1
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Load kernel hardening
+  ansible.builtin.command: sysctl --system
+  changed_when: false
+
+- name: Set restrictive default umask
+  ansible.builtin.copy:
+    dest: /etc/profile.d/99-platform-umask.sh
+    content: |
+      # Managed by Ansible
+      umask 027
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy audit rules
+  ansible.builtin.copy:
+    dest: /etc/audit/rules.d/99-platform.rules
+    content: |
+      ## Managed by Ansible — identity and privilege changes
+      -w /etc/passwd -p wa -k identity
+      -w /etc/group -p wa -k identity
+      -w /etc/shadow -p wa -k identity
+      -w /etc/sudoers -p wa -k privilege
+      -w /etc/sudoers.d/ -p wa -k privilege
+      -w /etc/ssh/sshd_config -p wa -k sshd
+      -a always,exit -F arch=b64 -S execve -C uid!=euid -k setuid
+    owner: root
+    group: root
+    mode: "0640"
+  notify: load audit rules
+
+- name: Enable auditd
+  ansible.builtin.systemd:
+    name: auditd
+    enabled: true
+    state: started
+
+- name: Configure fail2ban for sshd
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart fail2ban
+
+- name: Enable fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    enabled: true
+    state: started
+
+- name: Allow HTTP and HTTPS through firewalld
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - http
+    - https
+
+- name: Restrict SSH to the VCN and operator CIDR
+  ansible.posix.firewalld:
+    rich_rule: "rule family='ipv4' source address='{{ item }}' service name='ssh' accept"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - "{{ vcn_cidr }}"
+    - "{{ admin_cidr }}"

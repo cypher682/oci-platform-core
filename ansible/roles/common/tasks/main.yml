@@ -1,0 +1,74 @@
+---
+- name: Install base packages
+  ansible.builtin.dnf:
+    name: "{{ common_packages }}"
+    state: present
+    update_cache: true
+
+- name: Set system timezone
+  ansible.builtin.file:
+    src: "/usr/share/zoneinfo/{{ common_timezone }}"
+    dest: /etc/localtime
+    state: link
+    force: true
+
+- name: Configure OCI time service with chrony
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart chronyd
+
+- name: Enable chronyd
+  ansible.builtin.systemd:
+    name: chronyd
+    enabled: true
+    state: started
+
+- name: Ensure automation user exists
+  ansible.builtin.user:
+    name: deploy
+    shell: /bin/bash
+    create_home: true
+    state: present
+
+- name: Install sudoers entry for deploy
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/90-deploy
+    content: "deploy ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Create platform directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ common_app_root }}", owner: deploy, group: deploy, mode: "0755" }
+    - { path: "{{ common_log_root }}", owner: deploy, group: deploy, mode: "0755" }
+
+- name: Bound journald disk usage
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/limits.conf
+    content: |
+      [Journal]
+      SystemMaxUse=512M
+      SystemMaxFileSize=64M
+      MaxRetentionSec=14day
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart journald
+
+- name: Enable firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    enabled: true
+    state: started

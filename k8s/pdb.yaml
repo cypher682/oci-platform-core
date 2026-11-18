@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: platform-api
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: platform-api
+    app.kubernetes.io/part-of: oci-platform-core
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: platform-api

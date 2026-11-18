@@ -1,0 +1,49 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+backend.tf
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+terraform.tfvars
+*.auto.tfvars
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Keep templates
+!terraform.tfvars.example
+
+# Credentials and keys
+.env
+.env.*
+.oci/
+*.pem
+*.key
+*.p8
+!*.pub
+kubeconfig
+kubeconfig.*
+config-oci-platform
+
+# Ansible
+ansible/inventory/hosts.ini
+*.retry
+ansible/facts/
+.tmp/
+
+# Evidence binaries
+docs/evidence/**/*.tmp
+
+# App build output
+app/platform-api
+app/platform-api.exe
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

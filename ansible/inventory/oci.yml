@@ -1,0 +1,13 @@
+# Optional dynamic inventory via the oracle.oci collection.
+# Install: ansible-galaxy collection install oracle.oci
+# Export OCI_COMPARTMENT_OCID and a valid ~/.oci/config, then:
+#   ansible-inventory -i inventory/oci.yml --graph
+plugin: oracle.oci.oci
+config_file: ~/.oci/config
+config_profile: DEFAULT
+compartment_ocid: "{{ lookup('env', 'OCI_COMPARTMENT_OCID') }}"
+regions:
+  - us-ashburn-1
+hostname_format: display_name
+freeform_tags:
+  Project: oci-platform-core

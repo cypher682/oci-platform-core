@@ -1,0 +1,40 @@
+name: OCI API key authentication
+description: Writes ~/.oci/config and the API signing key from repository secrets
+
+inputs:
+  user:
+    description: OCI user OCID
+    required: true
+  tenancy:
+    description: OCI tenancy OCID
+    required: true
+  fingerprint:
+    description: API key fingerprint
+    required: true
+  region:
+    description: OCI region identifier
+    required: true
+  key:
+    description: PEM contents of the API signing private key
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Write OCI config
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "$HOME/.oci"
+        printf '%s\n' "${{ inputs.key }}" > "$HOME/.oci/oci_api_key.pem"
+        chmod 600 "$HOME/.oci/oci_api_key.pem"
+        cat > "$HOME/.oci/config" <<EOF
+        [DEFAULT]
+        user=${{ inputs.user }}
+        fingerprint=${{ inputs.fingerprint }}
+        tenancy=${{ inputs.tenancy }}
+        region=${{ inputs.region }}
+        key_file=$HOME/.oci/oci_api_key.pem
+        EOF
+        chmod 600 "$HOME/.oci/config"
+        echo "OCI_CLI_REGION=${{ inputs.region }}" >> "$GITHUB_ENV"

@@ -1,0 +1,19 @@
+* text=auto eol=lf
+
+*.tf        text eol=lf
+*.tfvars    text eol=lf
+*.sh        text eol=lf
+*.py        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.j2        text eol=lf
+Dockerfile  text eol=lf
+Makefile    text eol=lf
+
+*.bat       text eol=crlf
+*.ps1       text eol=crlf
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.pdf       binary

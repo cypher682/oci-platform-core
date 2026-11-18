@@ -1,0 +1,18 @@
+---
+common_packages:
+  - python3
+  - python3-pip
+  - firewalld
+  - chrony
+  - tar
+  - gzip
+  - jq
+  - git
+  - curl
+  - vim-enhanced
+  - policycoreutils-python-utils
+  - dnf-utils
+
+common_timezone: UTC
+common_app_root: /opt/platform
+common_log_root: /var/log/platform

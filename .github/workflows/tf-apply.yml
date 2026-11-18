@@ -1,0 +1,146 @@
+name: Terraform Apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, prod]
+        default: dev
+      confirm:
+        description: Type APPLY to confirm
+        required: true
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-apply-${{ inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: "1.9.5"
+  TF_IN_AUTOMATION: "true"
+  ENV: ${{ inputs.environment }}
+
+jobs:
+  apply:
+    name: Apply (${{ inputs.environment }})
+    if: inputs.confirm == 'APPLY'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: environments/${{ inputs.environment }}
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.OCI_S3_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.OCI_S3_SECRET_KEY }}
+      OCI_NAMESPACE: ${{ secrets.OCI_NAMESPACE }}
+      OCI_TFSTATE_BUCKET: ${{ secrets.OCI_TFSTATE_BUCKET }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure OCI credentials
+        uses: ./.github/actions/oci-auth
+        with:
+          user: ${{ secrets.OCI_CLI_USER }}
+          tenancy: ${{ secrets.OCI_CLI_TENANCY }}
+          fingerprint: ${{ secrets.OCI_CLI_FINGERPRINT }}
+          region: ${{ secrets.OCI_CLI_REGION }}
+          key: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Configure remote state
+        working-directory: .
+        run: bash scripts/ci-backend.sh "environments/${ENV}"
+
+      - name: Terraform init
+        run: terraform init -input=false -no-color -reconfigure
+
+      - name: Terraform apply
+        env:
+          TF_VAR_tenancy_ocid: ${{ secrets.OCI_CLI_TENANCY }}
+          TF_VAR_compartment_ocid: ${{ secrets.OCI_COMPARTMENT_OCID }}
+          TF_VAR_admin_cidr: ${{ secrets.OCI_ADMIN_CIDR }}
+          TF_VAR_ssh_public_key: ${{ secrets.OCI_SSH_PUBLIC_KEY }}
+          TF_VAR_db_admin_password: ${{ secrets.DB_ADMIN_PASSWORD }}
+          TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
+        run: |
+          terraform apply -auto-approve -input=false -no-color
+          terraform output -json > outputs.json
+          terraform output -raw evidence_bundle > evidence-bundle.json
+
+      - name: Upload outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs-${{ inputs.environment }}
+          path: |
+            environments/${{ inputs.environment }}/outputs.json
+            environments/${{ inputs.environment }}/evidence-bundle.json
+
+      - name: Install OCI CLI
+        run: pip install --quiet oci-cli
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.4
+
+      - name: Configure OKE kubeconfig
+        id: oke
+        run: |
+          CLUSTER_ID="$(terraform output -raw oke_cluster_id 2>/dev/null || echo null)"
+          if [ "$CLUSTER_ID" = "null" ] || [ -z "$CLUSTER_ID" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          oci ce cluster create-kubeconfig \
+            --cluster-id "$CLUSTER_ID" \
+            --file "$HOME/.kube/config" \
+            --region "$OCI_CLI_REGION" \
+            --token-version 2.0.0 \
+            --kube-endpoint PUBLIC_ENDPOINT
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy Kubernetes workload
+        if: steps.oke.outputs.enabled == 'true'
+        env:
+          OCIR_USERNAME: ${{ secrets.OCIR_USERNAME }}
+          OCIR_AUTH_TOKEN: ${{ secrets.OCIR_AUTH_TOKEN }}
+          OCIR_IMAGE: ${{ secrets.OCIR_IMAGE }}
+        working-directory: .
+        run: |
+          kubectl create namespace platform --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n platform create secret docker-registry ocir-secret \
+            --docker-server=iad.ocir.io \
+            --docker-username="$OCIR_USERNAME" \
+            --docker-password="$OCIR_AUTH_TOKEN" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          rm -rf /tmp/k8s-manifests
+          cp -r k8s /tmp/k8s-manifests
+          sed -i "s|newName:.*|newName: ${OCIR_IMAGE}|; s|newTag:.*|newTag: latest|" /tmp/k8s-manifests/kustomization.yaml
+          kubectl apply -k /tmp/k8s-manifests
+          kubectl -n platform rollout status deployment/platform-api --timeout=240s
+
+      - name: Smoke test the VM load balancer
+        working-directory: .
+        run: |
+          HEALTH_URL="$(terraform -chdir="environments/${{ inputs.environment }}" output -raw health_url)"
+          echo "Testing $HEALTH_URL"
+          for i in {1..12}; do
+            if curl -fsS --max-time 5 "$HEALTH_URL"; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Health check failed"
+          exit 1

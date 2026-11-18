@@ -1,0 +1,65 @@
+---
+- name: Install kubectl
+  ansible.builtin.get_url:
+    url: "https://dl.k8s.io/release/v{{ kubectl_version }}/bin/linux/{{ k8s_arch }}/kubectl"
+    dest: /usr/local/bin/kubectl
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download Helm
+  ansible.builtin.get_url:
+    url: "https://get.helm.sh/helm-v{{ helm_version }}-linux-{{ k8s_arch }}.tar.gz"
+    dest: "/tmp/helm-v{{ helm_version }}.tar.gz"
+    mode: "0644"
+
+- name: Unpack Helm
+  ansible.builtin.unarchive:
+    src: "/tmp/helm-v{{ helm_version }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+    creates: "/tmp/linux-{{ k8s_arch }}/helm"
+
+- name: Install Helm
+  ansible.builtin.copy:
+    src: "/tmp/linux-{{ k8s_arch }}/helm"
+    dest: /usr/local/bin/helm
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download Kustomize
+  ansible.builtin.get_url:
+    url: "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv{{ kustomize_version }}/kustomize_v{{ kustomize_version }}_linux_{{ k8s_arch }}.tar.gz"
+    dest: "/tmp/kustomize-v{{ kustomize_version }}.tar.gz"
+    mode: "0644"
+
+- name: Unpack Kustomize
+  ansible.builtin.unarchive:
+    src: "/tmp/kustomize-v{{ kustomize_version }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/kustomize
+
+- name: Install Kustomize
+  ansible.builtin.copy:
+    src: /tmp/kustomize
+    dest: /usr/local/bin/kustomize
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check client versions
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - kubectl version --client
+    - helm version --short
+    - kustomize version
+  changed_when: false
+  register: k8s_tool_versions
+
+- name: Show installed clients
+  ansible.builtin.debug:
+    msg: "{{ k8s_tool_versions.results | map(attribute='stdout') | list }}"

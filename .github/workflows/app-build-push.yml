@@ -1,0 +1,102 @@
+name: Build and Deploy Application
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "k8s/**"
+      - ".github/workflows/app-build-push.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: iad.ocir.io
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-push-deploy:
+    name: Build, push to OCIR, deploy to OKE
+    if: github.repository == 'cypher682/oci-platform-core'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure OCI credentials
+        uses: ./.github/actions/oci-auth
+        with:
+          user: ${{ secrets.OCI_CLI_USER }}
+          tenancy: ${{ secrets.OCI_CLI_TENANCY }}
+          fingerprint: ${{ secrets.OCI_CLI_FINGERPRINT }}
+          region: ${{ secrets.OCI_CLI_REGION }}
+          key: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+
+      - name: Log in to OCIR
+        run: |
+          echo "${{ secrets.OCIR_AUTH_TOKEN }}" | docker login "$REGISTRY" \
+            --username "${{ secrets.OCIR_USERNAME }}" \
+            --password-stdin
+
+      - name: Build and push
+        env:
+          IMAGE: ${{ secrets.OCIR_IMAGE }}
+        run: |
+          docker build \
+            --build-arg VERSION="${IMAGE_TAG::7}" \
+            -t "${IMAGE}:${IMAGE_TAG}" \
+            -t "${IMAGE}:latest" \
+            app
+          docker push "${IMAGE}:${IMAGE_TAG}"
+          docker push "${IMAGE}:latest"
+
+      - name: Install OCI CLI
+        run: pip install --quiet oci-cli
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.4
+
+      - name: Configure OKE kubeconfig
+        id: oke
+        env:
+          OCI_CLUSTER_ID: ${{ secrets.OCI_OKE_CLUSTER_ID }}
+        run: |
+          if [ -z "$OCI_CLUSTER_ID" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          oci ce cluster create-kubeconfig \
+            --cluster-id "$OCI_CLUSTER_ID" \
+            --file "$HOME/.kube/config" \
+            --region "$OCI_CLI_REGION" \
+            --token-version 2.0.0 \
+            --kube-endpoint PUBLIC_ENDPOINT
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Roll out the new image
+        if: steps.oke.outputs.enabled == 'true'
+        env:
+          OCIR_USERNAME: ${{ secrets.OCIR_USERNAME }}
+          OCIR_AUTH_TOKEN: ${{ secrets.OCIR_AUTH_TOKEN }}
+          OCIR_IMAGE: ${{ secrets.OCIR_IMAGE }}
+        run: |
+          kubectl create namespace platform --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n platform create secret docker-registry ocir-secret \
+            --docker-server="$REGISTRY" \
+            --docker-username="$OCIR_USERNAME" \
+            --docker-password="$OCIR_AUTH_TOKEN" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n platform set image deployment/platform-api "platform-api=${OCIR_IMAGE}:${IMAGE_TAG}"
+          kubectl -n platform rollout status deployment/platform-api --timeout=180s
+
+      - name: Smoke test the Kubernetes ingress
+        if: steps.oke.outputs.enabled == 'true'
+        run: |
+          IP="$(kubectl -n platform get svc platform-api -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+          echo "Kubernetes LB: http://${IP}/health"
+          curl -fsS --max-time 10 "http://${IP}/health"

@@ -1,0 +1,23 @@
+---
+- name: Ops runner — automation, kubectl, GitHub runner
+  hosts: ops
+  become: true
+  roles:
+    - common
+    - hardening
+    - docker
+    - oci-agent
+    - k8s-tools
+    - gh-runner
+
+- name: Application tier — hardened Oracle Linux, nginx, containerised API
+  hosts: app
+  become: true
+  serial: 1
+  roles:
+    - common
+    - hardening
+    - docker
+    - oci-agent
+    - nginx
+    - app-deploy

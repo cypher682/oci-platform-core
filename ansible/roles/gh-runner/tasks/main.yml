@@ -1,0 +1,73 @@
+---
+- name: Skip runner registration when no token is supplied
+  ansible.builtin.debug:
+    msg: "GH_RUNNER_TOKEN is empty — skipping self-hosted runner installation"
+  when: gh_runner_token | length == 0
+
+- name: Create runner service account
+  ansible.builtin.user:
+    name: ghrunner
+    shell: /bin/bash
+    create_home: true
+    system: false
+  when: gh_runner_token | length > 0
+
+- name: Create runner directory
+  ansible.builtin.file:
+    path: /opt/actions-runner
+    state: directory
+    owner: ghrunner
+    group: ghrunner
+    mode: "0755"
+  when: gh_runner_token | length > 0
+
+- name: Download GitHub Actions runner
+  ansible.builtin.get_url:
+    url: "https://github.com/actions/runner/releases/download/v{{ gh_runner_version }}/actions-runner-linux-x64-{{ gh_runner_version }}.tar.gz"
+    dest: "/tmp/actions-runner-{{ gh_runner_version }}.tar.gz"
+    mode: "0644"
+  when: gh_runner_token | length > 0
+
+- name: Unpack the runner
+  ansible.builtin.unarchive:
+    src: "/tmp/actions-runner-{{ gh_runner_version }}.tar.gz"
+    dest: /opt/actions-runner
+    remote_src: true
+    owner: ghrunner
+    group: ghrunner
+  when: gh_runner_token | length > 0
+
+- name: Check whether the runner is already configured
+  ansible.builtin.stat:
+    path: /opt/actions-runner/.runner
+  register: gh_runner_config
+  when: gh_runner_token | length > 0
+
+- name: Register the runner
+  ansible.builtin.command:
+    cmd: >-
+      ./config.sh
+      --url {{ gh_runner_repo_url }}
+      --token {{ gh_runner_token }}
+      --name {{ gh_runner_name }}
+      --labels {{ gh_runner_labels }}
+      --unattended
+      --replace
+    chdir: /opt/actions-runner
+  become_user: ghrunner
+  when:
+    - gh_runner_token | length > 0
+    - not gh_runner_config.stat.exists
+  no_log: true
+
+- name: Install and start the runner service
+  ansible.builtin.shell: |
+    set -e
+    if ! systemctl list-unit-files | grep -q '^actions.runner'; then
+      ./svc.sh install ghrunner
+    fi
+    ./svc.sh start
+  args:
+    chdir: /opt/actions-runner
+  when: gh_runner_token | length > 0
+  changed_when: false

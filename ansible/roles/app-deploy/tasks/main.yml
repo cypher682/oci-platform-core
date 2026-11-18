@@ -1,0 +1,59 @@
+---
+- name: Validate OCIR inputs
+  ansible.builtin.assert:
+    that:
+      - ocir_username | length > 0
+      - ocir_auth_token | length > 0
+      - app_image | length > 0
+    fail_msg: "Export OCIR_USERNAME, OCIR_AUTH_TOKEN and OCIR_IMAGE on the ops runner before running this role."
+
+- name: Log in to OCIR
+  community.docker.docker_login:
+    registry_url: "{{ ocir_registry }}"
+    username: "{{ ocir_username }}"
+    password: "{{ ocir_auth_token }}"
+    reauthorize: true
+  no_log: true
+
+- name: Pull the application image
+  community.docker.docker_image:
+    name: "{{ app_image }}"
+    source: pull
+    force_source: true
+
+- name: Run the application container on loopback only
+  community.docker.docker_container:
+    name: "{{ app_name }}"
+    image: "{{ app_image }}"
+    state: started
+    recreate: true
+    restart_policy: always
+    published_ports:
+      - "127.0.0.1:{{ app_port }}:8080"
+    env:
+      SERVICE_NAME: "{{ project_name }}"
+      VERSION: "{{ app_version_label }}"
+    log_driver: json-file
+    log_options:
+      max-size: "10m"
+      max-file: "3"
+
+- name: Wait for the container listener
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ app_port }}"
+    timeout: 45
+
+- name: Verify the health endpoint through the container
+  ansible.builtin.uri:
+    url: "{{ app_health_url }}"
+    status_code: 200
+    return_content: true
+  register: app_health
+  retries: 10
+  delay: 3
+  until: app_health.status == 200
+
+- name: Show health response
+  ansible.builtin.debug:
+    msg: "{{ app_health.json }}"

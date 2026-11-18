@@ -1,0 +1,16 @@
+---
+- name: reload sshd
+  ansible.builtin.shell: |
+    set -e
+    sshd -t
+    systemctl reload sshd
+  changed_when: true
+
+- name: load audit rules
+  ansible.builtin.command: augenrules --load
+  changed_when: true
+
+- name: restart fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: restarted

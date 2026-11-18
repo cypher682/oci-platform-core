@@ -1,0 +1,55 @@
+name: Ansible Configuration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ansible-configuration
+  cancel-in-progress: false
+
+jobs:
+  configure:
+    name: Configure app tier (self-hosted ops runner)
+    runs-on: [self-hosted, linux, x64, oci-platform]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ansible and collections
+        run: |
+          python3 -m pip install --user --upgrade "ansible-core>=2.16" docker
+          export PATH="$HOME/.local/bin:$PATH"
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Install private key
+        env:
+          OCI_SSH_PRIVATE_KEY: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$OCI_SSH_PRIVATE_KEY" > "$HOME/.ssh/oci_platform"
+          chmod 600 "$HOME/.ssh/oci_platform"
+          ssh-keygen -y -f "$HOME/.ssh/oci_platform" > /dev/null
+
+      - name: Build inventory from OCI tags
+        env:
+          OCI_COMPARTMENT_OCID: ${{ secrets.OCI_COMPARTMENT_OCID }}
+          OCI_AUTH_MODE: instance_principal
+        run: bash scripts/oci-inventory.sh ansible/inventory/hosts.ini
+
+      - name: Run the playbook
+        env:
+          PATH: ${{ env.HOME }}/.local/bin:${{ env.PATH }}
+          ANSIBLE_PRIVATE_KEY_FILE: ${{ env.HOME }}/.ssh/oci_platform
+          ADMIN_CIDR: ${{ secrets.OCI_ADMIN_CIDR }}
+          OCIR_REGISTRY: iad.ocir.io
+          OCIR_USERNAME: ${{ secrets.OCIR_USERNAME }}
+          OCIR_AUTH_TOKEN: ${{ secrets.OCIR_AUTH_TOKEN }}
+          OCIR_IMAGE: ${{ secrets.OCIR_IMAGE }}
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          cd ansible
+          ansible-playbook site.yml -i inventory/hosts.ini

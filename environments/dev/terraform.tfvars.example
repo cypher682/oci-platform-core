@@ -1,0 +1,43 @@
+# Copy to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars or private keys.
+
+project     = "oci-platform-core"
+environment = "dev"
+owner       = "cypher682"
+
+region     = "us-ashburn-1"
+region_key = "iad"
+
+# tenancy OCID and a compartment OCID (tenancy OCID is valid for a personal tenancy)
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaaexample"
+compartment_ocid = "ocid1.tenancy.oc1..aaaaaaaaexample"
+create_compartments = false
+
+# Your public IP, not 0.0.0.0/0
+admin_cidr = "203.0.113.10/32"
+
+# ssh-ed25519 AAAA... (contents of ~/.ssh/oci_platform.pub)
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyMaterial cypher682@oci"
+
+# Never put the DB password here. Export TF_VAR_db_admin_password instead.
+alert_email = "you@example.com"
+
+app_shape          = "VM.Standard.E4.Flex"
+app_ocpus          = 1
+app_memory_in_gbs  = 8
+app_instance_count = 2
+
+enable_ops_runner = true
+enable_oke        = true
+oke_node_shape    = "VM.Standard.E4.Flex"
+oke_node_ocpus    = 2
+oke_node_memory_in_gbs = 16
+oke_node_count    = 1
+
+enable_adb     = true
+adb_db_name    = "PLATFORMDB"
+enable_bastion = true
+enable_budget  = true
+budget_amount  = 50
+
+# lb_certificate_id = "ocid1.certificate.oc1..."

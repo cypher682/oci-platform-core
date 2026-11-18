@@ -1,0 +1,25 @@
+---
+project_name: oci-platform-core
+common_timezone: UTC
+vcn_cidr: 10.20.0.0/16
+admin_cidr: "{{ lookup('env', 'ADMIN_CIDR') }}"
+
+# SSH from the ops runner. Copy the private key to the runner or use ssh-agent
+# forwarding (ssh -A). Override with ANSIBLE_PRIVATE_KEY_FILE.
+ansible_ssh_private_key_file: "{{ lookup('env', 'ANSIBLE_PRIVATE_KEY_FILE') | default('~/.ssh/oci_platform', true) }}"
+
+# OCIR — never commit credentials. Export these on the runner.
+ocir_registry: "{{ lookup('env', 'OCIR_REGISTRY') | default('iad.ocir.io', true) }}"
+ocir_username: "{{ lookup('env', 'OCIR_USERNAME') | default('', true) }}"
+ocir_auth_token: "{{ lookup('env', 'OCIR_AUTH_TOKEN') | default('', true) }}"
+app_image: "{{ lookup('env', 'OCIR_IMAGE') | default('', true) }}"
+
+app_name: platform-api
+app_port: 8080
+
+# Self-hosted GitHub Actions runner — leave GH_RUNNER_TOKEN unset to skip registration
+gh_runner_token: "{{ lookup('env', 'GH_RUNNER_TOKEN') | default('', true) }}"
+gh_runner_repo_url: "https://github.com/cypher682/oci-platform-core"
+gh_runner_name: "oci-platform-runner-01"
+gh_runner_labels: "self-hosted,linux,x64,oci-platform"
+gh_runner_version: "2.319.1"

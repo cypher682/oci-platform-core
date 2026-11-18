@@ -1,0 +1,26 @@
+# Optional remote state on OCI Object Storage using its S3-compatible endpoint.
+#
+# Terraform calls this backend "s3" and reads AWS_ACCESS_KEY_ID /
+# AWS_SECRET_ACCESS_KEY. Those values are OCI Customer Secret Keys
+# (IAM → User → Customer Secret Keys); the endpoint is oraclecloud.com.
+# No AWS account or resource is involved.
+#
+# The pipeline generates backend.tf via scripts/ci-backend.sh. To use remote
+# state locally, copy this block into a backend.tf and run:
+#   terraform init -migrate-state
+#
+# terraform {
+#   backend "s3" {
+#     bucket   = "oci-platform-core-tfstate"
+#     key      = "oci-platform-core/dev/terraform.tfstate"
+#     region   = "us-east-1"
+#     endpoint = "https://<namespace>.compat.objectstorage.us-ashburn-1.oraclecloud.com"
+#
+#     skip_region_validation      = true
+#     skip_credentials_validation = true
+#     skip_metadata_api_check     = true
+#     skip_requesting_account_id  = true
+#     skip_s3_checksum            = true
+#     force_path_style            = true
+#   }
+# }
