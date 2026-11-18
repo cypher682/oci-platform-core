@@ -2,6 +2,9 @@
 collections:
   - name: community.docker
     version: ">=3.10.0"
+  # Provides the yaml stdout callback configured in ansible.cfg.
+  - name: community.general
+    version: ">=8.0.0"
   - name: ansible.posix
     version: ">=1.5.0"
   - name: oracle.oci
