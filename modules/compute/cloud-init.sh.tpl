@@ -21,7 +21,7 @@ dnf -y --setopt=install_weak_deps=False install \
   curl \
   policycoreutils-python-utils
 
-systemctl enable --now firewalld chrony
+systemctl enable --now firewalld chronyd
 
 # Keep SELinux enforcing — hardening role verifies it
 SELINUX_STATE=$(getenforce || true)
