@@ -1,13 +1,51 @@
 # oci-platform-core
 
-Production-shaped Oracle Cloud Infrastructure platform built with Terraform and Ansible:
-a private VM tier behind an OCI load balancer, an OKE cluster, Autonomous Database,
-Vault-managed secrets, encrypted Object Storage, monitoring, a bastion, budget
-guardrails, and GitHub Actions delivery.
+[![Terraform Apply](https://img.shields.io/badge/Terraform-Applied%20(OCI)-blue?logo=terraform)](https://github.com/cypher682/oci-platform-core/actions)
+[![Ansible](https://img.shields.io/badge/Ansible-Hardened%20%26%20Configured-red?logo=ansible)](https://github.com/cypher682/oci-platform-core/actions)
+[![Endpoint Status](https://img.shields.io/badge/Live%20LB-HTTP%20200%20OK-brightgreen)](http://193.122.169.180/health)
 
-The repository is a working platform, not a diagram. Everything below is expressed
-as code and validated with `terraform validate`; the deployment status is tracked
-in [docs/evidence/README.md](docs/evidence/README.md).
+Production-shaped Oracle Cloud Infrastructure platform built with Terraform and Ansible:
+a private VM tier behind a public Flexible OCI Load Balancer, an in-cloud self-hosted GitHub Actions runner authenticated via IAM Instance Principals, CIS-aligned OS hardening (SELinux Enforcing, auditd, fail2ban, umask 027), Nginx reverse proxy with enterprise security headers, and continuous container deployment of a Go microservice via Oracle Cloud Infrastructure Registry (OCIR).
+
+The repository is a working platform, not a diagram. Everything is codified and verified live on OCI (`us-ashburn-1`); the deployment verification is documented in [docs/evidence/README.md](docs/evidence/README.md).
+
+## Live Verified Endpoints
+
+The platform is live and verified across backend nodes:
+
+- **Public Load Balancer:** `http://193.122.169.180/`
+- **Health Check:** `http://193.122.169.180/health`
+  ```bash
+  $ curl -i http://193.122.169.180/health
+  HTTP/1.1 200 OK
+  Server: nginx
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: default-src 'none'; frame-ancestors 'none'
+
+  {"status":"ok","service":"oci-platform-core","version":"aacaf19","hostname":"75d01cc7017c","time":"2026-11-18T15:00:50Z"}
+  ```
+- **Runtime & Version Info:** `http://193.122.169.180/version`
+  ```json
+  {"description":"OCI platform core sample workload","endpoints":["/health","/ready","/metrics"],"runtime":"go1.23.12","service":"oci-platform-core","version":"aacaf19"}
+  ```
+- **Prometheus Telemetry:** `http://193.122.169.180/metrics`
+  ```text
+  # HELP platform_http_requests_total Total HTTP requests handled
+  # TYPE platform_http_requests_total counter
+  platform_http_requests_total 39
+  # HELP platform_uptime_seconds Seconds since process start
+  # TYPE platform_uptime_seconds gauge
+  platform_uptime_seconds 1739
+  # HELP platform_build_info Build metadata
+  # TYPE platform_build_info gauge
+  platform_build_info{version="aacaf19",go="go1.23.12"} 1
+  ```
+
+Traffic is distributed via round-robin between two private backend nodes:
+- `app-1`: `10.20.10.161` (hostname: `75d01cc7017c`)
+- `app-2`: `10.20.10.254` (hostname: `82e9d6f9696f`)
 
 ## What is in the stack
 
