@@ -8,7 +8,7 @@ resource "oci_database_autonomous_database" "this" {
 
   db_workload    = "OLTP"
   admin_password = var.admin_password
-  is_free_tier   = true
+  is_free_tier   = false
 
   cpu_core_count           = 1
   data_storage_size_in_tbs = 1

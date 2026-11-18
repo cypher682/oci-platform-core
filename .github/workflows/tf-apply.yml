@@ -77,6 +77,7 @@ jobs:
           TF_VAR_enable_oke: ${{ vars.ENABLE_OKE || 'true' }}
           TF_VAR_enable_adb: ${{ vars.ENABLE_ADB || 'true' }}
           TF_VAR_create_compartments: ${{ vars.CREATE_COMPARTMENTS || 'false' }}
+          TF_VAR_enable_budget: ${{ vars.ENABLE_BUDGET || 'false' }}
         run: |
           terraform apply -auto-approve -input=false -no-color
           terraform output -json > outputs.json

@@ -32,8 +32,10 @@ resource "oci_containerengine_cluster" "this" {
 }
 
 data "oci_containerengine_node_pool_option" "this" {
-  compartment_id      = var.compartment_id
-  node_pool_option_id = oci_containerengine_cluster.this.id
+  compartment_id        = var.compartment_id
+  node_pool_option_id   = oci_containerengine_cluster.this.id
+  node_pool_os_arch     = "x86_64"
+  node_pool_k8s_version = local.kubernetes_version
 }
 
 locals {

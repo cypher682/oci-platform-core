@@ -143,7 +143,7 @@ variable "enable_bastion" {
 
 variable "enable_budget" {
   type    = bool
-  default = true
+  default = false
 }
 
 variable "budget_amount" {

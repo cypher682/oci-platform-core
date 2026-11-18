@@ -4,6 +4,8 @@
 locals {
   platform_compartment_id = var.create_compartments ? oci_identity_compartment.platform[0].id : var.parent_compartment_id
   compartment_name        = var.create_compartments ? oci_identity_compartment.platform[0].name : "parent-compartment"
+  is_root_tenancy         = !var.create_compartments && startswith(var.parent_compartment_id, "ocid1.tenancy.")
+  resource_scope          = local.is_root_tenancy ? "in tenancy" : "in compartment id ${local.platform_compartment_id}"
 }
 
 resource "oci_identity_compartment" "platform" {
@@ -42,8 +44,7 @@ resource "oci_identity_policy" "admins" {
   description    = "Full control of platform resources for the admins group"
 
   statements = [
-    "Allow group ${oci_identity_group.admins.name} to manage all-resources in compartment id ${local.platform_compartment_id}",
-    "Allow group ${oci_identity_group.admins.name} to read tenancy in tenancy",
+    "Allow group ${oci_identity_group.admins.name} to manage all-resources ${local.resource_scope}",
   ]
 
   freeform_tags = var.tags
@@ -55,7 +56,7 @@ resource "oci_identity_policy" "readers" {
   description    = "Inspect-only access for auditors"
 
   statements = [
-    "Allow group ${oci_identity_group.readers.name} to read all-resources in compartment id ${local.platform_compartment_id}",
+    "Allow group ${oci_identity_group.readers.name} to read all-resources ${local.resource_scope}",
   ]
 
   freeform_tags = var.tags
@@ -80,12 +81,12 @@ resource "oci_identity_policy" "instance_principals" {
   description    = "Least-privilege permissions for platform workloads using instance principals"
 
   statements = [
-    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to read secret-bundles in compartment id ${local.platform_compartment_id}",
-    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to read objects in compartment id ${local.platform_compartment_id}",
-    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to use metrics in compartment id ${local.platform_compartment_id}",
-    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to read repos in compartment id ${local.platform_compartment_id}",
-    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to read instances in compartment id ${local.platform_compartment_id}",
-    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to read vnics in compartment id ${local.platform_compartment_id}",
+    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to read secret-bundles ${local.resource_scope}",
+    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to read objects ${local.resource_scope}",
+    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to use metrics ${local.resource_scope}",
+    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to read repos ${local.resource_scope}",
+    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to read instances ${local.resource_scope}",
+    "Allow dynamic-group ${oci_identity_dynamic_group.instances.name} to read vnics ${local.resource_scope}",
   ]
 
   freeform_tags = var.tags

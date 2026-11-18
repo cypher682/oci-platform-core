@@ -73,6 +73,8 @@ module "vault" {
   project        = local.project
   environment    = local.environment
   compartment_id = module.iam.compartment_id
+  tenancy_ocid   = var.tenancy_ocid
+  region         = var.region
 
   db_admin_password = var.db_admin_password
   tags              = local.common_tags
@@ -88,6 +90,8 @@ module "objectstorage" {
   kms_key_id     = module.vault.key_id
 
   tags = local.common_tags
+
+  depends_on = [module.vault]
 }
 
 module "compute_app" {

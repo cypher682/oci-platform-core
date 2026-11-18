@@ -113,7 +113,7 @@ variable "oke_node_shape" {
 
 variable "oke_node_ocpus" {
   type    = number
-  default = 2
+  default = 1
 }
 
 variable "oke_node_memory_in_gbs" {
@@ -143,7 +143,7 @@ variable "enable_bastion" {
 
 variable "enable_budget" {
   type    = bool
-  default = true
+  default = false
 }
 
 variable "budget_amount" {

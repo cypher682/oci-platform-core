@@ -37,3 +37,19 @@ resource "oci_vault_secret" "db_admin" {
 
   freeform_tags = var.tags
 }
+
+locals {
+  key_scope = startswith(var.compartment_id, "ocid1.tenancy.") ? "in tenancy" : "in compartment id ${var.compartment_id}"
+}
+
+resource "oci_identity_policy" "objectstorage_kms" {
+  compartment_id = var.tenancy_ocid
+  name           = "${var.project}-${var.environment}-objectstorage-kms"
+  description    = "Allow Object Storage in ${var.region} to use the platform master key"
+
+  statements = [
+    "Allow service objectstorage-${var.region} to use keys ${local.key_scope} where target.key.id = '${oci_kms_key.this.id}'"
+  ]
+
+  freeform_tags = var.tags
+}
