@@ -98,15 +98,16 @@ Flow logs are enabled on the VCN and delivered to an OCI Logging log group.
 
 ### Compute
 
-App VMs and the ops runner use the same module with different inputs. Cloud-init
+App VMs and the ops runner use the same module with different inputs, on
+`VM.Standard.E5.Flex` — the flexible family this tenancy has capacity for. Cloud-init
 creates the `deploy` user, installs Python, firewalld, chrony, and basic tooling,
 and leaves hardening, Docker, nginx, and the app to Ansible. Ansible re-checks
 SELinux and firewalld rather than trusting cloud-init.
 
 ### Data and secrets
 
-ADB is always-free, OLTP, private endpoint, NSG-restricted to app and OKE node
-subnets on 1521. The ADMIN password is passed as a sensitive variable, written to
+ADB is OLTP on the ECPU compute model (2 ECPUs, 20 GB), private endpoint,
+NSG-restricted to app and OKE node subnets on 1521. The ADMIN password is passed as a sensitive variable, written to
 Vault as a base64 secret, and is therefore present in Terraform state; protect the
 state accordingly.
 

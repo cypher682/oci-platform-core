@@ -192,8 +192,10 @@ policy; do not add `force_destroy` to production buckets.
 | `NotAuthorizedOrNotFound` | compartment OCID or policy | verify compartment and `manage all-resources` scope |
 | App VM unreachable from ops | NSG app allows source NSG ops on 22; SSH key | check NSGs, `ssh -vvv` |
 | LB 502 | nginx/app on 80/8080, app health | `curl 127.0.0.1/health` on the VM |
-| OKE node `NotReady` | node pool shape vs image arch, NSG, subnet route | use x86 E4 shape with the default image; check node logs |
-| ADB create fails | free-tier limit already used | disable ADB or use another tenancy |
+| OKE node `NotReady` | node pool shape vs image arch, NSG, subnet route | use an x86 E5 shape from the cluster's node option list; check node logs |
+| ADB create fails | OCPU model rejected, or below the 2 ECPU / 20 GB minimum | set `compute_model = "ECPU"`, or `enable_adb=false` |
+| `400-LimitExceeded` on instances | the shape has no quota (`standard-e4-core-count` is 0 in this tenancy) | use `VM.Standard.E5.Flex` or `VM.Standard.A1.Flex` |
+| `404-NotAuthorizedOrFoundKmsKey` on buckets | the Object Storage KMS policy is still propagating | re-run the apply; check the `objectstorage-<region>` policy statement |
 | `ocir-secret` pull errors | token, username format | `namespace/email`; re-create secret |
 | Budget alarm fires immediately | existing spend in compartment | raise `budget_amount` or scope budget to a new compartment |
 

@@ -131,7 +131,8 @@ secrets in a composite action, and Terraform reads it the same way as a laptop.
 
 The stack is sized for a short portfolio sprint on a trial credit, not for an
 always-on production budget. Load balancer hours, OKE worker hours, and block
-volumes dominate the bill; ADB is on the always-free shape. See
+volumes dominate the bill; ADB runs on the ECPU model (2 ECPUs, 20 GB) and bills
+too. See
 [docs/cost.md](docs/cost.md) for the line items and the budget guardrail.
 
 ```bash

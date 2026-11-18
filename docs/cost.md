@@ -10,8 +10,6 @@ resources burn credit and to destroy them when evidence is captured.
 - OCI Bastion (standard, sessions are short-lived).
 - OCI Monitoring alarms, ONS email topic, Logging within the free allowance.
 - OCIR storage for a small image (first 500 MB is free-tier eligible).
-- Autonomous Database always-free OLTP shape (1 OCPU, 20 GB) if the tenancy has
-  not already used its free instance.
 - Vault: one key version and a small secret are inexpensive but not zero.
 
 ## What costs money
@@ -20,12 +18,12 @@ Approximate on-demand rates for `us-ashburn-1`, used only for planning:
 
 | Resource | Assumption | Rate (approx.) | Monthly |
 |---|---|---|---|
-| E4 Flex app VM | 1 OCPU / 8 GB | $0.0375/hr | ~$27 |
+| E5 Flex app VM | 1 OCPU / 8 GB | $0.0375/hr | ~$27 |
 | Ops runner | 1 OCPU / 8 GB | $0.0375/hr | ~$27 |
 | OKE worker | 2 OCPU / 16 GB | $0.075/hr | ~$54 |
 | Flexible LB | 10 Mbps minimum | ~$0.03/hr | ~$22 |
 | Block volumes | 50 GB × 3 + 100 GB + 50 GB | $0.0255/GB-month | ~$8 |
-| ADB | always-free shape | $0 | $0 |
+| ADB | 2 ECPU / 20 GB (ECPU model) | billed hourly, not free | see OCI price list |
 | Object Storage | < 5 GB, infrequent | ~$0.0255/GB | < $1 |
 | Vault key | software key, 1 version | small | ~$1 |
 
@@ -47,8 +45,14 @@ It does not buy a year. Destroy when the evidence is captured.
 | Full demo | defaults | ~$5/day |
 | Prod-shaped | 3 app VMs, 2 nodes | ~$7/day |
 
-ADB always-free does not add cost, but it consumes the tenancy's one free
-instance. If the tenancy already has one, set `enable_adb=false`.
+ADB is not free in this stack. New Autonomous Databases must use the ECPU compute
+model (the OCPU model is rejected), so the smallest instance is 2 ECPUs and 20 GB
+and it bills from creation. Set `enable_adb=false` for the cheapest demo.
+
+Compute shape matters as much as size. This tenancy's `standard-e4-core-count` is
+zero, so anything on `VM.Standard.E4.Flex` fails with `400-LimitExceeded`. The
+presets use `VM.Standard.E5.Flex`, which has capacity and is the only family OKE
+offers for its node images here.
 
 ## Guardrails in code
 

@@ -110,8 +110,9 @@ story; note the limitation in evidence. If time runs short, drop OKE
 | Risk | Impact | Mitigation |
 |---|---|---|
 | Credit expires before apply | No live evidence | Apply the smallest useful stack first; capture health early |
-| OKE node shape/image mismatch | Node pool fails | Stay on x86 `VM.Standard.E4.Flex`; A1 needs an arm64 image |
-| ADB free tier already used | Apply fails | `enable_adb=false`; document |
+| OKE node shape/image mismatch | Node pool fails | Use an x86 E5 shape; the node image list offers only E5 here, and A1 needs an arm64 image |
+| Shape quota is zero | `400-LimitExceeded` on every instance | This tenancy has no E4 capacity; use `VM.Standard.E5.Flex` |
+| ADB compute model rejected | Apply fails | New ADBs must use ECPU (2 ECPUs / 20 GB); `enable_adb=false` to skip |
 | LB 502 | No health evidence | Check nginx and app on the VM; verify NSG allows LB NSG |
 | Ops runner unreachable | No Ansible | Verify `admin_cidr`, NSG, and key; use Bastion as fallback |
 | Public OKE API | Security finding | Documented residual risk with production fix |
