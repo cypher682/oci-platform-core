@@ -90,6 +90,19 @@ jobs:
             environments/${{ inputs.environment }}/outputs.json
             environments/${{ inputs.environment }}/evidence-bundle.json
 
+      - name: Build and push the first image
+        if: vars.ENABLE_OKE != 'false'
+        env:
+          OCIR_USERNAME: ${{ secrets.OCIR_USERNAME }}
+          OCIR_AUTH_TOKEN: ${{ secrets.OCIR_AUTH_TOKEN }}
+          OCIR_IMAGE: ${{ secrets.OCIR_IMAGE }}
+        working-directory: .
+        run: |
+          test -n "$OCIR_IMAGE" || (echo "OCIR_IMAGE secret is not set" && exit 1)
+          echo "$OCIR_AUTH_TOKEN" | docker login iad.ocir.io -u "$OCIR_USERNAME" --password-stdin
+          docker build --build-arg VERSION="${GITHUB_SHA::7}" -t "${OCIR_IMAGE}:latest" app
+          docker push "${OCIR_IMAGE}:latest"
+
       - name: Install OCI CLI
         run: pip install --quiet oci-cli
 
