@@ -76,7 +76,7 @@ KEY_JSON="$(oci iam customer-secret-key create \
   --output json)"
 
 KEY_ID="$(json_get id "$KEY_JSON")"
-SECRET="$(json_get secret-key "$KEY_JSON")"
+SECRET="$(json_get key "$KEY_JSON")"
 
 cat <<EOF
 
